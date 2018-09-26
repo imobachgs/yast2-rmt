@@ -19,37 +19,32 @@
 require 'y2firewall/firewalld'
 require 'ui/event_dispatcher'
 require 'rmt/utils'
+require "cwm/dialog"
+require "cwm/custom_widget"
+
+Yast.import 'CWMFirewallInterfaces'
 
 module RMT; end
 
-class RMT::WizardFirewallPage < Yast::Client
+class RMT::WizardFirewallPage < CWM::Dialog
   include ::UI::EventDispatcher
-
-  Yast.import 'CWMFirewallInterfaces'
 
   def initialize(config)
     textdomain 'rmt'
     @config = config
   end
 
-  def render_content
-    Wizard.SetNextButton(:next, Label.NextButton)
+  def title
+    'RMT configuration: Firewall'
+  end
 
-    settings = {
-      'services' => ['service:http', 'service:https'],
-      'display_details' => true,
-    }
-    firewall_widget = CWMFirewallInterfaces.CreateOpenFirewallWidget(settings)
-    firewall_layout = Ops.get_term(firewall_widget, 'custom_widget', VBox())
-
-    contents = HVSquash(firewall_layout)
-
-    Wizard.SetContents(
-      _('RMT configuration: Firewall'),
-      contents,
-      _('INSERT HELPFUL HELP HERE'), # TODO
-      true,
-      true
+  def contents
+    HBox(
+      HStretch(),
+      VBox(
+        RemoteFirewall.new
+      ),
+      HStretch()
     )
   end
 
@@ -69,16 +64,13 @@ class RMT::WizardFirewallPage < Yast::Client
     if firewalld.installed?
       firewalld.read
 
-      render_content
-
       if Yast::Popup.AnyQuestion(
         'Open firewall ports?',
         "For RMT to work properly, the ports for HTTP (80) and HTTPS (443) need to be opened in the firewall.\nDo you want to open these ports now?",
-        'Yes', 'No', :no
+        'Yes', 'No', :yes
       )
-        event_loop
+        super
       end
-      # firewalld.write
     else
       Yast::Popup.Message(_("Package 'firewalld' not installed. Skipping firewall configuration."))
       return finish_dialog(:next)
@@ -91,4 +83,32 @@ class RMT::WizardFirewallPage < Yast::Client
   def firewalld
     Y2Firewall::Firewalld.instance
   end
+
+  # Widget for opening HTTP & HTTPS services in the firewall
+  class RemoteFirewall < CWM::CustomWidget
+    attr_accessor :cwm_interfaces
+    def initialize
+      @cwm_interfaces = Yast::CWMFirewallInterfaces.CreateOpenFirewallWidget(
+        "services"        => ["http", "https"],
+        "display_details" => true
+      )
+    end
+
+    def init
+      Yast::CWMFirewallInterfaces.OpenFirewallInit(@cwm_interfaces, "")
+    end
+
+    def contents
+      @cwm_interfaces["custom_widget"]
+    end
+
+    def help
+      @cwm_interfaces["help"] || ""
+    end
+
+    def handle(event)
+      Yast::CWMFirewallInterfaces.OpenFirewallHandle(@cwm_interfaces, "", event)
+    end
+  end
+
 end
