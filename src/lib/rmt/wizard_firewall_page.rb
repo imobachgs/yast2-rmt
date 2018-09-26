@@ -27,8 +27,6 @@ Yast.import 'CWMFirewallInterfaces'
 module RMT; end
 
 class RMT::WizardFirewallPage < CWM::Dialog
-  include ::UI::EventDispatcher # TODO: (why) do I need that?
-
   def initialize(config)
     textdomain 'rmt'
     @config = config
@@ -48,19 +46,6 @@ class RMT::WizardFirewallPage < CWM::Dialog
     )
   end
 
-  def next_handler
-    firewalld.write
-    finish_dialog(:next)
-  end
-
-  def abort_handler
-    finish_dialog(:abort)
-  end
-
-  def back_handler
-    finish_dialog(:back)
-  end
-
   def run
     if firewalld.installed?
       firewalld.read
@@ -70,14 +55,17 @@ class RMT::WizardFirewallPage < CWM::Dialog
         "For RMT to work properly, the ports for HTTP (80) and HTTPS (443) need to be opened in the firewall.\nDo you want to open these ports now?",
         'Yes', 'No', :yes
       )
-        super
-        event_loop # TODO: (why) should I do that?
-          # or sth like
-        # firewalld.write and return :next
+        result = super
+        if result == :next
+          firewalld.write
+        end
+        return result
+      else
+        return :next
       end
     else
       Yast::Popup.Message(_("Package 'firewalld' not installed. Skipping firewall configuration."))
-      return finish_dialog(:next)
+      return :next
     end
   end
 
