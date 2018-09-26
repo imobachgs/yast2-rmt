@@ -27,7 +27,7 @@ Yast.import 'CWMFirewallInterfaces'
 module RMT; end
 
 class RMT::WizardFirewallPage < CWM::Dialog
-  include ::UI::EventDispatcher
+  include ::UI::EventDispatcher # TODO: (why) do I need that?
 
   def initialize(config)
     textdomain 'rmt'
@@ -49,6 +49,7 @@ class RMT::WizardFirewallPage < CWM::Dialog
   end
 
   def next_handler
+    firewalld.write
     finish_dialog(:next)
   end
 
@@ -70,6 +71,9 @@ class RMT::WizardFirewallPage < CWM::Dialog
         'Yes', 'No', :yes
       )
         super
+        event_loop # TODO: (why) should I do that?
+          # or sth like
+        # firewalld.write and return :next
       end
     else
       Yast::Popup.Message(_("Package 'firewalld' not installed. Skipping firewall configuration."))
