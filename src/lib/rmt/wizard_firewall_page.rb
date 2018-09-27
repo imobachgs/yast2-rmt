@@ -81,7 +81,7 @@ class RMT::WizardFirewallPage < CWM::Dialog
     attr_accessor :cwm_interfaces
     def initialize
       @cwm_interfaces = Yast::CWMFirewallInterfaces.CreateOpenFirewallWidget(
-        "services"        => ["http", "https"],
+        "services"        => services,
         "display_details" => true
       )
     end
@@ -100,6 +100,14 @@ class RMT::WizardFirewallPage < CWM::Dialog
 
     def handle(event)
       Yast::CWMFirewallInterfaces.OpenFirewallHandle(@cwm_interfaces, "", event)
+    end
+
+    def store
+      Yast::CWMFirewallInterfaces.StoreAllowedInterfaces(services)
+    end
+
+    def services
+      ["http", "https"]
     end
   end
 
